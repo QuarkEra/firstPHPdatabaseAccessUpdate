@@ -21,7 +21,8 @@
         echo "Connection failed: " . $e->getMessage();
     }
 
-    $eggsCollectedError = $eggsRemovedError = "";
+    $eggsCollectedError = $eggsUsedError = "";
+
     echo "<h1>Farmers Log</h1><br>";
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (empty($_POST["eggscollected"])) {
@@ -31,16 +32,33 @@
             if (!is_numeric($_POST["eggscollected"])) {
                 $eggsCollectedError = "numbers only please.";
             } else {
-                $eggsCollected = $_POST["eggscollected"];
+                $eggsCollected = cleanData($_POST["eggscollected"]);
 
-                echo "<br>Last entry: " . $eggsCollected;
+                echo "<br>Last entry of eggs collected: " . $eggsCollected;
                 try {
                     $sql = "INSERT INTO eggs (eggsCollected) VALUES ('$eggsCollected')";
                     $conn->exec($sql);
                 } catch(PDOException $e) {
                     echo $sql . "<br>" . $e->getMessage();
                 }
+            }
+        }
+        if (empty($_POST["eggsused"])) {
+            $sqlEggsUsed = "INSERT INTO eggs (eggsUsed) VALUES ('0')";
+            $conn->exec($sqlEggsUsed);
+        } else {
+            if (!is_numeric(cleanData($_POST["eggsused"]))) {
+                $eggsUsedError = "Numbers only please.";
+            } else {
+                $eggsUsed = cleanData($_POST["eggsused"]);
 
+                echo "<br>Last entry of eggs used (sold/eaten): " . $eggsUsed;
+                try {
+                    $sqlEggsUsed = "INSERT INTO eggs (eggsUsed) VALUES ('$eggsUsed')";
+                    $conn->exec($sqlEggsUsed);
+                } catch (PDOException $e) {
+                    echo "<br>" . $sqlEggsUsed . "<br>" . $e->getMessage();
+                }
             }
         }
     }
@@ -50,7 +68,15 @@
     $eggsTotal = 0;
     $row = $sql->fetch(PDO::FETCH_ASSOC);
     $eggsTotal += $row['totEggs'];
-    echo "<br> Total eggs: " . $eggsTotal;
+    $prevEggsTotal = $eggsTotal;
+    $sqlEggsUsed = $conn->prepare("SELECT SUM(eggsUsed) AS totEggsUsed FROM eggs");
+    $sqlEggsUsed->execute();
+    $eggsUsedTotal = 0;
+    $rowOfUsed = $sqlEggsUsed->fetch(PDO::FETCH_ASSOC);
+    $eggsUsedTotal += $rowOfUsed['totEggsUsed'];
+    $eggs = $eggsTotal - $eggsUsedTotal;
+    echo "<br> Total eggs: " . $eggs;
+    echo "<br> Previous Total eggs: " . $prevEggsTotal;
 
 
     function cleanData($data) {
@@ -59,8 +85,6 @@
         $data = htmlspecialchars($data);
         return $data;
     }
-
-  
 
     $conn = null;
     ?>
@@ -78,12 +102,12 @@
                         <h3>Newly Laid</h3>
                             Eggs collected today:<input type="text" name="eggscollected"><br>
                             <span><?php echo $eggsCollectedError;?></span>
-                        <h3>Sold</h3>
-                            
-                        
-                        <h3>Used</h3>
+                        <h3>Used (sold/eaten)</h3>
+                            Eggs sold today:<input type="text" name="eggsused"><br>
+                            <span><?php echo $eggsUsedError;?></span>
+     
                         <h3>Brought Forward</h3>
-
+                        <input type="submit">
                         
                     </div>
                 </div>
